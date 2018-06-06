@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+
+usage() {
+    (>&2 echo "Usage: $0 [-a <SERVICE>  <KEY> | -c <SERVICE>  <KEY>  | -l  [SERVICE> | -s |-h]")
+    (>&2 echo "   -a -- Adds new entry")
+    (>&2 echo "   -c -- Calculate entry")
+    (>&2 echo "   -l -- list codes of added services")
+    (>&2 echo "   -s -- change salt string")
+    exit -1
+}
+
+encrypt() {
+     echo "$1" | openssl enc -aes-128-cbc -a -salt -pass pass:$2 | tr -d "\n"
+}
+
+decrypt() {
+    echo "$1" | openssl enc -aes-128-cbc -a -d -salt -pass pass:$2
+}
+
+getsalt() {
+    (>&2 echo "Insert ${1} salt: ")
+    read -s salt
+    echo $salt
+}
+
+calculate() {
+    service=$1
+    key=$2
+    if [ -z "$service" ] || [ -z "$key" ]; then
+        usage
+    fi
+
+    code=`oathtool  --totp -b "${key}"`
+    echo "$service: ${code:0:3} ${code:3:6}"
+}
+
+
+while getopts "a:c:ls" flag; do
+    case ${flag} in
+        a)
+            service=$2
+            key=$3
+            salt=${GSALT:-$(getsalt)}
+            calculate "$service" "$key"
+            salted=$(encrypt "${service}: $key" "$salt")
+            echo "Storing service key";
+            echo "$salted" >> .g
+            ;;
+        c)
+            echo "Calculating code:"
+            calculate "$2" "$3"
+            ;;
+        l)
+            filter=$2
+            salt=${GSALT:-$(getsalt)}
+            while read -r line
+            do
+                line=$(decrypt "$line" "$salt")
+                service=$(echo $line | sed -e 's/: .*//')
+                key=$(echo $line | sed -e 's/.*: //')
+                if [ -z "${filter}" ] ||  echo "$service" | grep -iqF "${filter}" ; then
+                    calculate "$service" "$key"
+                fi
+            done < .oathKeys
+            ;;
+        s)
+            oldsalt=$(getsalt old)
+            newsalt=$(getsalt new)
+            while read -r line
+            do
+                line=$(decrypt "$line" "$oldsalt")
+                encrypt "$line" "$newsalt" >> .gtemp
+                echo "" >> .oathKeysTemp
+            done < .oathKeys
+            mv .oathKeysTemp .oathKeys
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
