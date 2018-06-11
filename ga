@@ -79,7 +79,7 @@ while getopts "a:c:lqs" flag; do
                 service=$(echo $line | sed -e 's/: .*//')
                 key=$(echo $line | sed -e 's/.*: //')
                 if echo "$service" | grep -iqF "${filter}" ; then
-                     qrencode -t ASCIIi -o qrcode.txt\
+                     qrencode -t ANSIUTF8 -o qrcode.txt\
                         "otpauth://totp/${service}?secret=${key}&issuer=TerminalAutenticatorDB"
                     cat  qrcode.txt
                     rm qrcode.txt
