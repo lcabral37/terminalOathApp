@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+OATHKEYFILE=${OATHKEYFILE:-.oathKeys}
+
 usage() {
     (>&2 echo "Usage: $0 [-a <SERVICE>  <KEY> | -c <SERVICE>  <KEY> [-q] | -l  [SERVICE] [-q] | -s |-h]")
     (>&2 echo "   -a -- Adds new entry")
@@ -44,7 +46,7 @@ while getopts "a:c:lqs" flag; do
             calculate "$service" "$key"
             salted=$(encrypt "${service}: $key" "$salt")
             echo "Storing service key";
-            echo "$salted" >> .oathKeys
+            echo "$salted" >> ${OATHKEYFILE}
             ;;
         c)
             echo "Calculating code:"
@@ -61,7 +63,7 @@ while getopts "a:c:lqs" flag; do
                 if [ -z "${filter}" ] ||  echo "$service" | grep -iqF "${filter}" ; then
                     calculate "$service" "$key"
                 fi
-            done < .oathKeys
+            done < ${OATHKEYFILE}
             ;;
         q)
             filter=$2
@@ -77,7 +79,7 @@ while getopts "a:c:lqs" flag; do
                     cat  qrcode.txt
                     rm qrcode.txt
                 fi
-            done < .oathKeys
+            done < ${OATHKEYFILE}
             ;;
         s)
             oldsalt=$(getsalt old)
@@ -87,8 +89,8 @@ while getopts "a:c:lqs" flag; do
                 line=$(decrypt "$line" "$oldsalt")
                 encrypt "$line" "$newsalt" >> .oathKeysTemp
                 echo "" >> .oathKeysTemp
-            done < .oathKeys
-            mv .oathKeysTemp .oathKeys
+            done < ${OATHKEYFILE}
+            mv .oathKeysTemp ${OATHKEYFILE}
             ;;
         *)
             usage

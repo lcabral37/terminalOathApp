@@ -10,7 +10,11 @@ It keeps the keys salted to  avoid having then in a plain file.
 
 ## Usage
 
-YOu can store the salt string in an  eviroment variable `$GSALT`
+You can setup the following enviroment variables prior to running the script:
+ - `$OATHKEYFILE` - The file where the keys will be stored (defaults to `.oathKeys`)
+ - `$GSALT` - you will be asked for a salt keyto encrypt/decrypt your secrets stored in the file. If it is not set, the script will ask everyt time it needs it.
+
+
 To store a service key
 
 ```
