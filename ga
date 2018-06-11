@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 usage() {
-    (>&2 echo "Usage: $0 [-a <SERVICE>  <KEY> | -c <SERVICE>  <KEY>  | -l  [SERVICE> | -s |-h]")
+    (>&2 echo "Usage: $0 [-a <SERVICE>  <KEY> | -c <SERVICE>  <KEY> [-q] | -l  [SERVICE] [-q] | -s |-h]")
     (>&2 echo "   -a -- Adds new entry")
     (>&2 echo "   -c -- Calculate entry")
     (>&2 echo "   -l -- list codes of added services")
@@ -35,7 +35,7 @@ calculate() {
 }
 
 
-while getopts "a:c:ls" flag; do
+while getopts "a:c:lqs" flag; do
     case ${flag} in
         a)
             service=$2
@@ -60,6 +60,22 @@ while getopts "a:c:ls" flag; do
                 key=$(echo $line | sed -e 's/.*: //')
                 if [ -z "${filter}" ] ||  echo "$service" | grep -iqF "${filter}" ; then
                     calculate "$service" "$key"
+                fi
+            done < .oathKeys
+            ;;
+        q)
+            filter=$2
+            salt=${GSALT:-$(getsalt)}
+            while read -r line
+            do
+                line=$(decrypt "$line" "$salt")
+                service=$(echo $line | sed -e 's/: .*//')
+                key=$(echo $line | sed -e 's/.*: //')
+                if echo "$service" | grep -iqF "${filter}" ; then
+                     qrencode -t ASCIIi -o qrcode.txt\
+                        "otpauth://totp/${service}?secret=${key}&issuer=TerminalAutenticatorDB"
+                    cat  qrcode.txt
+                    rm qrcode.txt
                 fi
             done < .oathKeys
             ;;
