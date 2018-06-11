@@ -44,7 +44,7 @@ while getopts "a:c:ls" flag; do
             calculate "$service" "$key"
             salted=$(encrypt "${service}: $key" "$salt")
             echo "Storing service key";
-            echo "$salted" >> .g
+            echo "$salted" >> .oathKeys
             ;;
         c)
             echo "Calculating code:"
