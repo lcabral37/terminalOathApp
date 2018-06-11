@@ -85,7 +85,7 @@ while getopts "a:c:lqs" flag; do
             while read -r line
             do
                 line=$(decrypt "$line" "$oldsalt")
-                encrypt "$line" "$newsalt" >> .gtemp
+                encrypt "$line" "$newsalt" >> .oathKeysTemp
                 echo "" >> .oathKeysTemp
             done < .oathKeys
             mv .oathKeysTemp .oathKeys
