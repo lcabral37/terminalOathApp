@@ -101,12 +101,13 @@ while getopts "a:c:lqs" flag; do
                 service=$(echo $line | sed -e 's/: .*//')
                 key=$(echo $line | sed -e 's/.*: //')
                 if echo "$service" | grep -iqF "${filter}" ; then
-                     qrencode -t ANSIUTF8 -o qrcode.txt\
+                    tempFile=$(mktemp oath.XXX)
+                     qrencode -t ANSIUTF8 -o $tempFile\
                         "otpauth://totp/${service}?secret=${key}&issuer="
-                    if [[ -f qrcode.txt ]] ; then
+                    if [[ -f $tempFile ]] ; then
                         echo -e "\n$service"
-                        cat  qrcode.txt
-                        rm qrcode.txt
+                        cat  $tempFile
+                        rm $tempFile
                     else
                         echo >&2 "Failed to generate qrcode.";
                         exit 1;
@@ -120,11 +121,13 @@ while getopts "a:c:lqs" flag; do
             newsalt=$(getsalt new)
             while read -r line
             do
+                tempFile=$(mktemp oath.XXX)
                 line=$(decrypt "$line" "$oldsalt")
-                encrypt "$line" "$newsalt" >> .oathKeysTemp
-                echo "" >> .oathKeysTemp
+                encrypt "$line" "$newsalt" >> $tempFile
+                echo "" >> $tempFile
             done < ${OATHKEYFILE}
-            mv .oathKeysTemp ${OATHKEYFILE}
+            cp $tempFile ${OATHKEYFILE}
+            rm $tempFile
             ;;
         *)
             usage
