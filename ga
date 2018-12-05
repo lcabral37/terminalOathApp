@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 
-OATHKEYFILE=${OATHKEYFILE:-.oathKeys}
+#Requirements
+# openssl
+# oathtool
+# qrencode
+
+
+OATHKEYFILE=${OATHKEYFILE:-~/.oathKeys}
 
 usage() {
     (>&2 echo "Usage: $0 [-a <SERVICE>  <KEY> | -c <SERVICE>  <KEY> [-q] | -l  [SERVICE] [-q] | -s |-h]")
@@ -18,7 +24,7 @@ encrypt() {
 
 decrypt() {
     hash openssl 2>/dev/null || { echo >&2 "openssl is require but it's not installed.  Aborting."; exit 1; }
-    echo "$1" | openssl enc -aes-128-cbc -a -d -salt -pass pass:$2
+    echo "$1" | openssl enc -aes-128-cbc -a -d -salt -pass pass:$2 openssl 2>/dev/null
 }
 
 getsalt() {
@@ -40,6 +46,19 @@ calculate() {
     echo "$service: ${code:0:3} ${code:3:6}"
 }
 
+validateSalt () {
+    salt=$1
+    line=$(head -n1 ${OATHKEYFILE})
+    if [[ ! -z  $line ]] ; then
+        line=$(decrypt "$line" "$salt")
+        echo $salt $line
+        if [[ $line != *": "* ]] ; then
+            echo >&2 "Failed to validate the salt.";
+            exit 1
+        fi
+    fi
+}
+
 
 while getopts "a:c:lqs" flag; do
     case ${flag} in
@@ -47,6 +66,7 @@ while getopts "a:c:lqs" flag; do
             service=$2
             key=$3
             salt=${GSALT:-$(getsalt)}
+            validateSalt $salt
             calculate "$service" "$key"
             salted=$(encrypt "${service}: $key" "$salt")
             echo "Storing service key";
@@ -59,6 +79,7 @@ while getopts "a:c:lqs" flag; do
         l)
             filter=$2
             salt=${GSALT:-$(getsalt)}
+            validateSalt $salt
             while read -r line
             do
                 line=$(decrypt "$line" "$salt")
@@ -73,6 +94,7 @@ while getopts "a:c:lqs" flag; do
             hash qrencode 2>/dev/null || { echo >&2 "qrencode is require but it's not installed.  Aborting."; exit 1; }
             filter=$2
             salt=${GSALT:-$(getsalt)}
+            validateSalt $salt
             while read -r line
             do
                 line=$(decrypt "$line" "$salt")
@@ -81,13 +103,20 @@ while getopts "a:c:lqs" flag; do
                 if echo "$service" | grep -iqF "${filter}" ; then
                      qrencode -t ANSIUTF8 -o qrcode.txt\
                         "otpauth://totp/${service}?secret=${key}&issuer="
-                    cat  qrcode.txt
-                    rm qrcode.txt
+                    if [[ -f qrcode.txt ]] ; then
+                        echo -e "\n$service"
+                        cat  qrcode.txt
+                        rm qrcode.txt
+                    else
+                        echo >&2 "Failed to generate qrcode.";
+                        exit 1;
+                    fi
                 fi
             done < ${OATHKEYFILE}
             ;;
         s)
             oldsalt=$(getsalt old)
+            validateSalt $salt
             newsalt=$(getsalt new)
             while read -r line
             do
