@@ -14,16 +14,21 @@ usage() {
     (>&2 echo "   -c -- Calculate entry")
     (>&2 echo "   -l -- list codes of added services")
     (>&2 echo "   -s -- change salt string")
+    (>&2 echo "   -q -- print qrcode ")
+    (>&2 echo "   -t -- test dependencies")
     exit -1
+}
+testDependencies() {
+    hash openssl 2>/dev/null || { echo >&2 "openssl is require but it's not installed.  Aborting."; exit 1; }
+    hash oathtool 2>/dev/null || { echo >&2 "oathtool is require but it's not installed.  Aborting."; exit 1; }
+    hash qrencode 2>/dev/null || { echo >&2 "qrencode is require but it's not installed.  Aborting."; exit 1; }
 }
 
 encrypt() {
-    hash openssl 2>/dev/null || { echo >&2 "openssl is require but it's not installed.  Aborting."; exit 1; }
     echo "$1" | openssl enc -aes-128-cbc -a -salt -pass pass:$2 | tr -d "\n"
 }
 
 decrypt() {
-    hash openssl 2>/dev/null || { echo >&2 "openssl is require but it's not installed.  Aborting."; exit 1; }
     echo "$1" | openssl enc -aes-128-cbc -a -d -salt -pass pass:$2 openssl 2>/dev/null
 }
 
@@ -34,8 +39,6 @@ getsalt() {
 }
 
 calculate() {
-    hash oathtool 2>/dev/null || { echo >&2 "oathtool is require but it's not installed.  Aborting."; exit 1; }
-
     service=$1
     key=$2
     if [ -z "$service" ] || [ -z "$key" ]; then
@@ -60,12 +63,13 @@ validateSalt () {
 }
 
 
-while getopts "a:c:lqs" flag; do
+while getopts "a:c:lqst" flag; do
     case ${flag} in
         a)
             service=$2
             key=$3
             salt=${GSALT:-$(getsalt)}
+            testDependencies
             validateSalt $salt
             calculate "$service" "$key"
             salted=$(encrypt "${service}: $key" "$salt")
@@ -73,6 +77,7 @@ while getopts "a:c:lqs" flag; do
             echo "$salted" >> ${OATHKEYFILE}
             ;;
         c)
+            testDependencies
             echo "Calculating code:"
             calculate "$2" "$3"
             ;;
@@ -80,6 +85,7 @@ while getopts "a:c:lqs" flag; do
             filter=$2
             salt=${GSALT:-$(getsalt)}
             validateSalt $salt
+            testDependencies
             while read -r line
             do
                 line=$(decrypt "$line" "$salt")
@@ -91,10 +97,10 @@ while getopts "a:c:lqs" flag; do
             done < ${OATHKEYFILE}
             ;;
         q)
-            hash qrencode 2>/dev/null || { echo >&2 "qrencode is require but it's not installed.  Aborting."; exit 1; }
             filter=$2
             salt=${GSALT:-$(getsalt)}
             validateSalt $salt
+            testDependencies
             while read -r line
             do
                 line=$(decrypt "$line" "$salt")
@@ -116,6 +122,7 @@ while getopts "a:c:lqs" flag; do
             done < ${OATHKEYFILE}
             ;;
         s)
+            testDependencies
             oldsalt=$(getsalt old)
             validateSalt $salt
             newsalt=$(getsalt new)
@@ -128,6 +135,11 @@ while getopts "a:c:lqs" flag; do
             done < ${OATHKEYFILE}
             cp $tempFile ${OATHKEYFILE}
             rm $tempFile
+            ;;
+        t)
+            echo >&2 "Checking for dependencies..."
+            testDependencies verbose
+            echo >&2 "Done."
             ;;
         *)
             usage
