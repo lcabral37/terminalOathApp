@@ -54,7 +54,6 @@ validateSalt () {
     line=$(head -n1 ${OATHKEYFILE})
     if [[ ! -z  $line ]] ; then
         line=$(decrypt "$line" "$salt")
-        echo $salt $line
         if [[ $line != *": "* ]] ; then
             echo >&2 "Failed to validate the salt.";
             exit 1
