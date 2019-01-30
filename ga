@@ -105,7 +105,7 @@ while getopts "a:c:lqst" flag; do
                 line=$(decrypt "$line" "$salt")
                 service=$(echo $line | sed -e 's/: .*//')
                 key=$(echo $line | sed -e 's/.*: //')
-                if echo "$service" | grep -iqF "${filter}" ; then
+                if [ -z "${filter}" ] ||  echo "$service" | grep -iqF "${filter}" ; then
                     tempFile=$(mktemp oath.XXX)
                      qrencode -t ANSIUTF8 -o $tempFile\
                         "otpauth://totp/${service}?secret=${key}&issuer="
